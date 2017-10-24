@@ -1,0 +1,109 @@
+import default
+
+import time
+
+sleep = time.sleep
+
+!!ordinal = num => {
+	string = str(num)
+	num %= 100
+	if num % 10 == 1 and num != 11 string += 'st'
+	else if num % 10 == 2 and num != 12 string += 'nd'
+	else if num % 10 == 3 and num != 13 string += 'rd'
+	else string += 'th'
+	return string
+}
+
+!!map = (function, array) => [function(value) for value : array]
+
+!!filter = (function, array) => [value for value : array if function(value)]
+
+!!reduce = (function, array) => {
+	list = list(array)
+	if !list return 0
+	while (len(list) > 1) {
+		list[0, 1] = [function(list[0], list[1])]
+	}
+	return list[0]
+}
+
+!!digits = (base, number) => {
+	result = []
+	trunc = number % 1
+	number = int(number)
+	while number {
+		result.insert(0, number % base)
+		number //= base
+	}
+	if result result[-1] += trunc
+	return result
+}
+
+str = a => a.__str__()
+repr = a => a.__repr__()
+
+print = *a => {
+    for i : a {
+        for j : str(i).bytes {
+            write(j)
+        } write(32)
+    } write(10)
+    flush()
+}
+
+fallthrough = value => {
+	print(value)
+	return value
+}
+
+select = *indices => array => {
+	result = []
+	for index : indices result.append(array[index])
+	if len(indices) == 1 return result[0]
+	return type(array)(result)
+}
+
+!!cartesianproduct = (left, right) => {
+	result = []
+	for l : left for r : right result.append((l, r))
+	return result
+}
+
+!!cartesianpower = (power, array) => {
+	if power == 0 return []
+	if power == 1 return array
+	if power == 2 return cartesianproduct(array, array)
+	result = []
+	for a : array for k : cartesianpower(power - 1, array) {result.append((a,) + k)}
+	return result
+}
+
+!!prefixes = array => [array[to i + 1] for i : range(len(array))]
+
+!!suffixes = array => [array[i to] for i : range(len(array))]
+
+pyrange = range + list
+
+range = *a => {
+    if len(a) == 0 return -1
+    if len(a) == 1 {
+        a = a[0]
+        if a is list return max(a) - min(a)
+        else return pyrange(a)
+    }
+    return pyrange(*a)
+}
+
+identity = x => x
+
+first = select(0)
+
+last = select(-1)
+
+!!head = (x, y) => y[to x]
+
+!!tail = (x, y) => y[len(y) - x to]
+
+pop = x => x[to -1]
+
+dequeue = x => x[1 to]

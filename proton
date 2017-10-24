@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+
+import lexer, proton_parser, newinterpreter, sys, traceback, os
+
+from errors import *
+from utils import *
+
+help = '''usage: proton [-c <cmd> | -r <recursion_limit> | -t <traceback_limit> | -h] [file] [args...]
+Options:
+-c <cmd>: Run <cmd> as Proton code and do not enter the shell
+-r <recursion_limit>: Set the recursion limit to <recursion_limit>
+-t <traceback_limit>: Set the traceback limit to <traceback_limit>
+-h: Display this help message
+If no file name or <cmd> is given, this will enter a Proton shell'''
+
+def showhelp():
+    raise SystemExit(help)
+
+limit = 10000
+
+def setLimit(value):
+    global limit
+    limit = value
+
+flags = {
+    '-r': (1, lambda x, s: sys.setrecursionlimit(int(x)), '''Usage: -r <recursion_limit>. Type proton -h for more information'''),
+    '-t': (1, lambda x, s: setLimit(int(x)), '''Usage: -t <traceback_limit>. Type proton -h for more information'''),
+    '-c': (1, lambda x, s: s(x), '''Usage: -c <cmd>. Type proton -h for more information'''),
+    '-h': (0, lambda s: showhelp(), help)
+}
+
+newinterpreter.setPath(('/' in sys.argv[0]) and sys.argv[0][:sys.argv[0].rfind('/')] or '')
+
+if __name__ == '__main__':
+    # sys.setrecursionlimit(100000)
+    symlist = {x: newinterpreter.default[x] for x in newinterpreter.default}
+    code = None
+    def assign(x):
+        code = x
+    args = []
+    flag = None
+    cache = []
+    for arg in sys.argv[1:]:
+        if flag is not None:
+            cache.append(arg)
+        if flag is not None and len(cache) >= flags[flag][0]:
+            flags[flag][1](*(cache + [assign]))
+            cache = []
+            flag = None
+        elif arg in flags:
+            flag = arg
+        elif code is None:
+            code = open(arg, 'r').read()
+        else:
+            args.append(arg)
+    if flag is not None:
+        raise SystemExit(flags[flag][2])
+    if code is not None:
+        try:
+            lang = newinterpreter.include('lang')
+            for i in lang:
+                symlist[i] = lang[i]
+            newinterpreter.complete(proton_parser.parse(lexer.tokenize(code)), symlist)
+        except:
+            print(traceback.format_exc(limit = limit), file = sys.stderr)
+    else:
+        lang = newinterpreter.include('lang')
+        symlist['restart'] = lambda: os.system('reset') and None or os.execl((newinterpreter.path and newinterpreter.path + '/') + 'proton', '')
+        for i in lang:
+            symlist[i] = lang[i]
+        code = ''
+        while True:
+            try:
+                code += input('... ' if code else '>>> ') + '\n'
+            except EOFError:
+                print()
+                exit(0)
+            except KeyboardInterrupt:
+                print('\b\b  ')
+                print('KeyboardInterrupt')
+            try:
+                result = newinterpreter.complete(proton_parser.parse(lexer.tokenize(code)), symlist)[0]
+                if result != None: print(result["__repr__"]()["default"] if isinstance(result, dict) and "__repr__" in result else result["__str__"]()["default"] if isinstance(result, dict) and "__str__" in result else repr(result))
+                code = ''
+            except (UnclosedBracketError, UnclosedStringError):
+                pass
+            except KeyboardInterrupt:
+                print('\b\bKeyboardInterrupt')
+                code = ''
+            except:
+                print(traceback.format_exc(limit = limit), file = sys.stderr)
+                code = ''
